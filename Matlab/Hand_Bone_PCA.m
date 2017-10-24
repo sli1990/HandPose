@@ -34,11 +34,11 @@ end
 %% Project Data on PCA base
 
 % Number of components Taken into account
-components = 9;
+components = 1;
 
 % Project and re-project data
 W = bonePCA(:,1:components);
-boneLengths_repr = (W*W'*boneLengths')';
+boneLengths_repr = (W*W'*(boneLengths-mean(boneLengths))')'+mean(boneLengths);
 
 % Calculate re-projection error (in percent)
 repr_error = 100*sum(sum(abs(boneLengths_repr-boneLengths)))/(size(boneLengths,1)*size(boneLengths,2)*mean(mean(boneLengths)));
@@ -52,21 +52,36 @@ shapePairs = [2 3; 3 4; 4 5; 5 6];   %finger bases to each other
 boneLengths_aug = [boneLengths zeros(length(groundTruthReshaped),4)];
 
 % Calculate bone lengths
+baseShapes = zeros(length(boneLengths),4);
 for i=1:4
     boneLengths_aug(:,20+i) = sqrt(sum((groundTruthReshaped(:,:,shapePairs(i,1))-groundTruthReshaped(:,:,shapePairs(i,2))).^2,2));
+    baseShapes(:,i) = boneLengths_aug(:,20+i);
 end
 
 % Calculate PCA of hand shape paramters
 [shapePCA,~,eigenValShape] = pca(boneLengths_aug);
 
 % Number of components Taken into account
-components_aug = 20;
+components_aug = 5;
 
 % Project and re-project data
-Wb = shapePCA(:,[1,2,3,4,9,20,21,22,23,24]);
-boneLengths_aug_repr = (Wb*Wb'*boneLengths_aug')';
+Wb = shapePCA(:,1:components_aug);
+boneLengths_aug_repr = (Wb*Wb'*(boneLengths_aug-mean(boneLengths_aug))')'+mean(boneLengths_aug);
 
 % Calculate re-projection error (in percent)
 repr_error_aug = 100*sum(sum(abs(boneLengths_aug_repr-boneLengths_aug)))/(size(boneLengths_aug,1)*size(boneLengths_aug,2)*mean(mean(boneLengths_aug)));
 
+%% PCA only of Shape Parameters
 
+% Calculate PCA of hand shape paramters
+[shapeOnlyPCA,~,eigenValShapeOnly] = pca(baseShapes);
+
+% Number of components Taken into account
+components_bs = 3;
+
+% Project and re-project data
+Wbs = shapeOnlyPCA(:,1:components_bs);
+baseShapes_repr = (Wbs*Wbs'*(baseShapes-mean(baseShapes))')'+mean(baseShapes);
+
+% Calculate re-projection error (in percent)
+repr_error_base = 100*sum(sum(abs(baseShapes-baseShapes_repr)))/(size(baseShapes,1)*size(baseShapes,2)*mean(mean(baseShapes_repr)));
