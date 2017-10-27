@@ -19,8 +19,8 @@ IMAGE_PIXELS = IMAGE_SIZE * IMAGE_SIZE
 # Basic model parameters as external flags.
 FLAGS = None
          
-def boxnet(images,keep_prob):
-	"""BoxNet model to be used for inference
+def boundboxnet(images):
+	"""BoundBoxNet model to be used for inference
   	Args:	
   		images: image batch to be processed
   	Returns:
@@ -88,20 +88,20 @@ def boxnet(images,keep_prob):
   		biases = tf.Variable(tf.zeros([3]), name='biases')
   		box_offset = tf.matmul(hidden5_drop, weights) + biases
   	
-  	return box_offset, keep_prob
+  	return bboffset, keep_prob
 
-def loss(scale, label):
-	"""Calculates the loss from the estimated scale and the label.
+def loss(bboffset, label):
+	"""Calculates the loss from the bounding box offset and the label.
 	Args:
-		scale: Scale tensor, float - [batch_size].
+		bboffset: Bounding box offset tensor, float - [batch_size].
 		label: Label tensor, float - [batch_size].
 	Returns:
 		loss: Loss tensor of type float.
 	"""
-	scale_error = scale - label
-	l2_scale_loss = tf.nn.l2_loss(scale_error, name='l2_scale')
+	bboffset_error = bboffset - label
+	l2_bboffset_loss = tf.nn.l2_loss(bboffset_error, name='l2_bboffset')
 	
-	return tf.reduce_mean(l2_scale_loss, name='l2_scale_mean')
+	return tf.reduce_mean(l2_bboffset_loss, name='l2_bboffset_mean')
 
 
 def training(loss, learning_rate):
@@ -132,18 +132,18 @@ def training(loss, learning_rate):
 	return train_op
 
 
-def evaluation(scale, label):
-	"""Evaluate the quality of predicting the correct scale on chosen dataset.
+def evaluation(bboffset, label):
+	"""Evaluate the quality of predicting the correct bounding box offset on chosen dataset.
 	Args:
-		scale: Scale tensor, float - [batch_size].
+		bboffset: Bounding box offset tensor, float - [batch_size].
 		label: Label tensor, float - [batch_size].
 	Returns:
 		Loss tensor of type float.
 	"""
-	scale_error = scale - label
-	l2_scale_loss = tf.nn.l2_loss(scale_error, name='l2_scale')
+	bboffset_error = bboffset - label
+	l2_bboffset_loss = tf.nn.l2_loss(bboffset_error, name='l2_bboffset')
 	
-	return tf.reduce_mean(l2_scale_loss, name='l2_scale_mean')
+	return tf.reduce_mean(l2_bboffset_loss, name='l2_bboffset_mean')
 
 
 def parse_function(example_proto):
@@ -151,21 +151,24 @@ def parse_function(example_proto):
 	# Parse through features and extract byte string
 	parsed_features = tf.parse_single_example(example_proto,features ={
 		'image': tf.FixedLenFeature([],tf.string),
-		'scale': tf.FixedLenFeature([],tf.string)
+		'bboffset': tf.FixedLenFeature([],tf.string)
 		},name='features')
 
 	# Decode content into correct types
 	image_dec = tf.decode_raw(parsed_features['image'],tf.float32)
-	scale_dec = tf.decode_raw(parsed_features['scale'],tf.float32)
+	bboffset_dec = tf.decode_raw(parsed_features['bboffset'],tf.float32)
 
-	# Reshape image to 128x128
-	image_reshaped = tf.reshape(image_dec,[128,128,1])
+	# Reshape image to 166x166
+	image_reshaped = tf.reshape(image_dec,[166,166,1])
 
-	return image_reshaped, scale_dec
+	# Crop 128x128 image around COM
+	image_com_cropped = tf.image.crop_to_bounding_box(image_reshaped,19,19,128,128)
+
+	return image_com_cropped, bboffset_dec
 
 
 def run_training():
-	"""Train the ScaleNet on the hand image data."""
+	"""Train the BoundBoxNet on the hand image data."""
 
 	# Training and validation data locations
 	training_filenames = ["/home/dhri-dz/Documents/HandPose/Dataset/Training/HDF5_Test/HDF5TFR_1", "/home/dhri-dz/Documents/HandPose/Dataset/Training/HDF5_Test/HDF5TFR_2", "/home/dhri-dz/Documents/HandPose/Dataset/Training/HDF5_Test/HDF5TFR_3", "/home/dhri-dz/Documents/HandPose/Dataset/Training/HDF5_Test/HDF5TFR_4"]
@@ -198,8 +201,8 @@ def run_training():
 	eval_train_iterator = eval_train_dataset.make_initializable_iterator()
 	validation_iterator = validation_dataset.make_initializable_iterator()
 
-	# Build a Graph that computes predictions from the ScaleNet inference model
-	box_offset_est, keep_prob = boxnet(next_images)
+	# Build a Graph that computes predictions from the BoundBoxNet inference model
+	box_offset_est, keep_prob = boundboxnet(next_images)
 
     # Add the operations for loss calculation to the graph
 	loss_val = loss(box_offset_est, next_labels)
@@ -208,7 +211,7 @@ def run_training():
     # Add the operation that calculates and applies the gradients to the graph
 	train_op = training(loss_val, FLAGS.learning_rate)
 
-    # Add the operations that evaluate the error in predicting the scale on chosen dataset 
+    # Add the operations that evaluate the error in predicting the bounding box offset on chosen dataset 
  	eval_op = evaluation(box_offset_est, next_labels)
 
     # Build the summary Tensor based on the TF collection of Summaries.
@@ -241,7 +244,7 @@ def run_training():
     # Run the Op to initialize the variables.
    	sess.run(init)
 
-   	# Some variables
+   	# Some variables !!!! TO CHANGE
    	start_time = time.time()
    	log_frequency = 100
    	log_frequency_comp = log_frequency - 1
@@ -335,7 +338,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--learning_rate',
       type=float,
-      default=0.001,
+      default=0.0001,
       help='Initial learning rate.'
   )
   parser.add_argument(
@@ -353,7 +356,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--log_dir',
       type=str,
-      default='/home/dhri-dz/Documents/HandPose/ScaleNet/Log',
+      default='/home/dhri-dz/Documents/HandPose/BoundBoxNet/Log',
       help='Directory to put the log data.'
   )
   parser.add_argument(
