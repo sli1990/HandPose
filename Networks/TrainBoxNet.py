@@ -86,7 +86,7 @@ def boundboxnet(images):
   	with tf.name_scope('linear'):
   		weights = tf.Variable(tf.random_uniform([1024,3], minval=-math.sqrt(6/(1024+3)), maxval=math.sqrt(6/(1024+3))), name='weights')
   		biases = tf.Variable(tf.zeros([3]), name='biases')
-  		box_offset = tf.matmul(hidden5_drop, weights) + biases
+  		bboffset = tf.matmul(hidden5_drop, weights) + biases
   	
   	return bboffset, keep_prob
 
