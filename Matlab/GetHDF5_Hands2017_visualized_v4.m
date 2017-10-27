@@ -183,7 +183,7 @@ points = points(:,(points(1,:)>-cropSizePlus & points(1,:)<cropSizePlus & points
 % with a certain u,v coordinate exists: insert depth value at that
 % position
 heightmap = zeros(480,640);
-for ptInd=1:length(points)
+for ptInd=1:size(points,2)
     vvv = max(min(round(v(ptInd)),480),1);
     uuu = max(min(round(u(ptInd)),640),1);
     heightmap(vvv, uuu) = d(ptInd);
