@@ -27,7 +27,7 @@ def ScaleNet(images,joints,scales):
 
 	  	# Padding Layer (with value 1) to maintain size
 	  	with tf.name_scope('padd'):
-	  		padded_input = PADD2D(images_centered, 2, 1)
+	  		padded_input = PADD2D(images, 2, 1)
 
 	  	# Convolutional Layer 1
 	  	with tf.name_scope('convolution1'):
